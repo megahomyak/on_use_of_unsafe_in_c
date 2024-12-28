@@ -1,0 +1,44 @@
+Rust has an "unsafe {}" block, and that, in my opinion, can be pretty conveniently shifted to C. Not as a block, but as a name prefix.
+
+You can just use an "unsafe__" prefix for a function (or a variable; below about that) to denote it's unsafe. If there are guidelines for the project, such as "no function in our internal libraries should assume a pointer can be NULL", then functions that are unsafe without such guidelines being in place but are safe when these guidelines are in place should NOT be marked "unsafe". This is to prevent almost all functions being marked as "unsafe". People should have a way to move all the hassle to the global guidelines
+
+All "unsafe__" things should have a safety guidelines comment near them (like `type unsafe__varname = value; /* SAFETY GUIDELINES: blah blah blah */`) to denote what additional measures should be in place to use the subject safely
+
+When a previously safe function becomes "unsafe", it needs to be renamed to show the change. After the renaming, each use of the previous name will guaranteedly not be valid anymore, thus the compilation of the project will not work until all the function invocations are changed to accomodate for the new unsafe nature of the function
+
+When used on a variable, "unsafe" becomes a signifier of needing to treat the variable specially, like only using it with a mutex specified in that variable's safety guidelines
+
+I advocate for the use of "unsafe__" and *not "unsafe_" specifically* because just an "unsafe_" can be a part of the function's name, like "unsafe_utf8_conversion", which might do absolutely safe things, but have "unsafe" in its name for some other reason. On the other hand, if it's written like "unsafe__", then it's clearly not just a regular part of the name and is a special signifier, because no one *needs* a double space in English (in paper writing that's just a "space", it can't even be "double") so no one uses a double space in English, which means that we can take it for such specialties and thus it is uniquely a specialty
+
+An example of a work process with `unsafe__` (a crude example, sorry):
+
+```
+somefn(somestruct.unsafe__somefield)
+/* Dev thoughts: "Hmm, why does this one start with "unsafe__"? Let's look this up... */
+```
+
+```
+struct somestruct {
+    ...
+    locktype somefield_lock;
+    sometype unsafe__somefield; /* SAFETY GUIDELINES: should be mutexed with .somefield_lock */
+    ...
+}
+/* Dev thoughts: "Aha! I need to lock the lock! Alright, here we go */
+```
+
+```
+/* Refined code: */
+lock(somestruct.somefield_lock);
+somefn(somestruct.unsafe__somefield)
+```
+
+And here's how an unsafe function could be defined:
+
+```
+string_slice unsafe__slice_string(string_slice string, index beginning, index end) { /* SAFETY GUIDELINES: "beginning" and "end" should not be greater than the length of the string */
+    ...
+}
+```
+
+I don't want to state how this unsafe function could be used because there's only one way. Derive it yourself if you want
